@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>加班打卡系统 - 新加坡版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overtime Tracking System - Singapore Edition</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <style>
     :root {
       --primary: #4361ee;
@@ -26,6 +28,7 @@
       --deduction: #e91e63;
       --saturday: #e3f2fd;
       --sunday: #ffecb3;
+      --allowance: #7e57c2;
     }
     
     * {
@@ -149,6 +152,16 @@
     
     #settingsBtn {
       background: #6c757d;
+      color: white;
+    }
+    
+    #salaryToggle {
+      background: #9c27b0;
+      color: white;
+    }
+    
+    #allowanceBtn {
+      background: var(--allowance);
       color: white;
     }
     
@@ -464,6 +477,14 @@
       color: #4caf50;
     }
     
+    .stat-card.allowance {
+      background: #f3e5f5;
+    }
+    
+    .stat-card.allowance .value {
+      color: var(--allowance);
+    }
+    
     footer {
       text-align: center;
       padding: 25px;
@@ -519,27 +540,81 @@
     
     .export-options {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      flex-direction: column;
+      gap: 15px;
       background: #e8f5e9;
-      padding: 15px 20px;
-      border-radius: 12px;
+      padding: 20px;
+      border-radius: 16px;
       margin: 0 20px 20px;
+      border: 1px solid #c8e6c9;
     }
     
-    .export-options button {
+    .export-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .export-header h3 {
+      color: var(--primary);
+      font-size: 1.3rem;
+    }
+    
+    .close-export {
+      background: transparent;
+      border: none;
+      color: #666;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    
+    .export-types {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    
+    .export-types button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 15px 10px;
+      text-align: center;
       background: var(--info);
       color: white;
+    }
+    
+    .export-types button span {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 5px;
+      font-weight: normal;
+    }
+    
+    .export-range {
+      display: flex;
+      gap: 20px;
+      padding-top: 10px;
+      border-top: 1px solid #c8e6c9;
+      justify-content: center;
+    }
+    
+    .export-range label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     
     .pay-period-container {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding: 15px 20px;
-      background: #fff8e1;
-      border-radius: 12px;
+      gap: 12px;
+      padding: 18px;
+      background: #e3f2fd;
+      border-radius: 16px;
       margin: 0 20px 20px;
+      border: 1px solid #bbdefb;
     }
     
     .pay-period-row {
@@ -579,11 +654,74 @@
       border-radius: 8px;
     }
     
+    .period-dates {
+      font-weight: 600;
+      color: #1565c0;
+      padding: 5px 12px;
+      background: white;
+      border-radius: 8px;
+      min-width: 220px;
+      display: inline-block;
+      text-align: center;
+    }
+    
+    .period-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    
+    .period-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 14px;
+    }
+    
     .period-explanation {
       font-size: 14px;
-      color: #666;
+      color: #0d47a1;
+      padding: 10px;
+      background: #bbdefb;
+      border-radius: 8px;
       margin-top: 5px;
-      padding: 0 5px;
+    }
+    
+    .allowance-list {
+      max-height: 250px;
+      overflow-y: auto;
+      margin: 15px 0;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border: 1px solid #eee;
+    }
+    
+    .allowance-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      align-items: center;
+    }
+    
+    .allowance-item:last-child {
+      border-bottom: none;
+    }
+    
+    .allowance-month {
+      font-weight: 600;
+    }
+    
+    .allowance-amount {
+      font-weight: 600;
+      color: var(--allowance);
     }
     
     @media (max-width: 768px) {
@@ -616,6 +754,15 @@
       .pay-period-row {
         flex-direction: column;
         align-items: flex-start;
+      }
+      
+      .export-types {
+        grid-template-columns: 1fr;
+      }
+      
+      .export-range {
+        flex-direction: column;
+        gap: 10px;
       }
     }
     
@@ -651,29 +798,36 @@
 <body>
   <div class="container">
     <header>
-      <h1><i class="fas fa-calendar-alt"></i> 加班打卡系统 - 新加坡版</h1>
-      <p class="subtitle">记录考勤、加班时间及薪资计算（周末全天加班1.5倍/2.0倍）</p>
+      <h1><i class="fas fa-calendar-alt"></i> Overtime Tracking System - Singapore Edition</h1>
+      <p class="subtitle">Track attendance, overtime hours & salary calculation (1.5x/2.0x for weekend overtime)</p>
     </header>
     
     <div id="controls">
       <div class="control-group">
         <input type="month" id="monthPicker">
-        <button id="exportBtn" onclick="showExportOptions()">
-          <i class="fas fa-file-export"></i> 导出数据
-        </button>
-        <button id="settingsBtn" onclick="openSettings()">
-          <i class="fas fa-cog"></i> 系统设置
-        </button>
-      </div>
-      <div class="control-group">
         <button id="clockInBtn">
-          <i class="fas fa-sign-in-alt"></i> 上班打卡
+          <i class="fas fa-sign-in-alt"></i> Clock In
         </button>
         <button id="clockOutBtn">
-          <i class="fas fa-sign-out-alt"></i> 下班打卡
+          <i class="fas fa-sign-out-alt"></i> Clock Out
         </button>
         <button id="holidayToggle" onclick="toggleHolidays()">
-          <i class="fas fa-calendar-day"></i> 假期视图
+          <i class="fas fa-calendar-day"></i> Holiday View
+        </button>
+        <button id="salaryToggle" onclick="toggleSalary()">
+          <i class="fas fa-eye-slash"></i> Hide Salary
+        </button>
+      </div>
+      
+      <div class="control-group">
+        <button id="exportBtn" onclick="showExportOptions()">
+          <i class="fas fa-file-export"></i> Export Data
+        </button>
+        <button id="settingsBtn" onclick="openSettings()">
+          <i class="fas fa-cog"></i> Settings
+        </button>
+        <button id="allowanceBtn" onclick="openAllowanceModal()">
+          <i class="fas fa-money-bill-wave"></i> Manage Allowance
         </button>
       </div>
     </div>
@@ -681,52 +835,95 @@
     <div class="pay-period-container">
       <div class="pay-period-row">
         <div class="pay-period-label">
-          <i class="fas fa-info-circle"></i>
-          <span>当前薪资周期:</span>
+          <i class="fas fa-calendar-check"></i>
+          <span>Pay Period:</span>
         </div>
         <div class="pay-period">
-          <select id="payPeriodSelect">
-            <option value="current">本月周期</option>
-            <option value="last">上月周期</option>
-            <option value="custom">自定义周期</option>
+          <select id="payPeriodSelect" onchange="updatePayPeriod()">
+            <option value="current">Current Month</option>
+            <option value="last">Last Month</option>
+            <option value="custom">Custom Period</option>
           </select>
-          <span id="payPeriodDates"></span>
+          <span id="payPeriodDates" class="period-dates">2025-05-18 to 2025-06-17</span>
         </div>
       </div>
+      
+      <div class="period-controls">
+        <button class="period-btn" onclick="adjustPeriod(-1)">
+          <i class="fas fa-chevron-left"></i> Prev
+        </button>
+        <button class="period-btn" onclick="adjustPeriod(1)">
+          Next <i class="fas fa-chevron-right"></i>
+        </button>
+        <button class="period-btn" onclick="applyCustomPeriod()">
+          <i class="fas fa-check"></i> Apply
+        </button>
+      </div>
+      
       <div class="period-explanation">
-        薪资周期基于选择的月份自动计算：本月周期 = 上月18日 - 本月17日
+        <i class="fas fa-info-circle"></i>
+        Pay period: 18th of previous month to 17th of current month
       </div>
     </div>
     
     <div class="export-options" id="exportOptions" style="display: none;">
-      <button onclick="exportCSV()">
-        <i class="fas fa-file-csv"></i> 导出CSV
-      </button>
-      <button onclick="exportExcel()">
-        <i class="fas fa-file-excel"></i> 导出Excel
-      </button>
-      <button onclick="printReport()">
-        <i class="fas fa-print"></i> 打印报表
-      </button>
-      <button onclick="exportSummary()">
-        <i class="fas fa-file-alt"></i> 导出摘要
-      </button>
+      <div class="export-header">
+        <h3><i class="fas fa-download"></i> Export Options</h3>
+        <button class="close-export" onclick="showExportOptions()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="export-types">
+        <button onclick="exportCSV()">
+          <i class="fas fa-file-csv"></i> CSV
+          <span>Comma separated values</span>
+        </button>
+        <button onclick="exportExcel()">
+          <i class="fas fa-file-excel"></i> Excel
+          <span>Full spreadsheet format</span>
+        </button>
+        <button onclick="printReport()">
+          <i class="fas fa-print"></i> Print
+          <span>Printer-friendly version</span>
+        </button>
+        <button onclick="exportSummary()">
+          <i class="fas fa-file-alt"></i> Summary
+          <span>Monthly report summary</span>
+        </button>
+        <button onclick="exportPDF()">
+          <i class="fas fa-file-pdf"></i> PDF
+          <span>Portable document format</span>
+        </button>
+      </div>
+      
+      <div class="export-range">
+        <label>
+          <input type="radio" name="exportRange" value="current" checked> Current Period
+        </label>
+        <label>
+          <input type="radio" name="exportRange" value="all"> All Data
+        </label>
+        <label>
+          <input type="radio" name="exportRange" value="custom"> Custom Range
+        </label>
+      </div>
     </div>
     
     <div class="holiday-info">
       <i class="fas fa-info-circle"></i>
-      <p>红色标记为新加坡公共假期，加班工资通常为平时的2倍；星期六全天加班1.5倍，星期日全天加班2.0倍</p>
+      <p>Red markers indicate Singapore public holidays (2.0x pay). Saturday overtime: 1.5x, Sunday overtime: 2.0x</p>
     </div>
     
     <div class="calendar-container">
       <div class="weekdays">
-        <div>星期日</div>
-        <div>星期一</div>
-        <div>星期二</div>
-        <div>星期三</div>
-        <div>星期四</div>
-        <div>星期五</div>
-        <div>星期六</div>
+        <div>Sunday</div>
+        <div>Monday</div>
+        <div>Tuesday</div>
+        <div>Wednesday</div>
+        <div>Thursday</div>
+        <div>Friday</div>
+        <div>Saturday</div>
       </div>
       
       <div id="calendar"></div>
@@ -734,88 +931,126 @@
     
     <div class="stats">
       <div class="stat-card">
-        <div class="label">加班天数</div>
+        <div class="label">Overtime Days</div>
         <div class="value" id="overtimeDays">0</div>
       </div>
       <div class="stat-card">
-        <div class="label">总加班小时</div>
+        <div class="label">Total Overtime Hours</div>
         <div class="value" id="totalHours">0</div>
       </div>
       <div class="stat-card">
-        <div class="label">周六加班小时</div>
+        <div class="label">Sat Overtime Hours</div>
         <div class="value" id="satHours">0</div>
       </div>
       <div class="stat-card">
-        <div class="label">周日加班小时</div>
+        <div class="label">Sun Overtime Hours</div>
         <div class="value" id="sunHours">0</div>
       </div>
       <div class="stat-card">
-        <div class="label">迟到次数</div>
+        <div class="label">Late Arrivals</div>
         <div class="value" id="lateCount">0</div>
       </div>
       <div class="stat-card">
-        <div class="label">迟到总分钟</div>
+        <div class="label">Total Late Minutes</div>
         <div class="value" id="lateMinutes">0</div>
       </div>
-      <div class="stat-card late-deduction">
-        <div class="label">迟到扣款</div>
+      <div class="stat-card late-deduction" id="lateDeductionCard">
+        <div class="label">Late Deductions</div>
         <div class="value" id="lateDeduction">$0</div>
       </div>
-      <div class="stat-card salary">
-        <div class="label">本月薪资预估</div>
+      <div class="stat-card salary" id="salaryCard">
+        <div class="label">Salary Estimate</div>
         <div class="value" id="monthSalary">$0</div>
+      </div>
+      <div class="stat-card allowance" id="allowanceCard">
+        <div class="label">Allowance</div>
+        <div class="value" id="totalAllowance">$0</div>
       </div>
     </div>
     
     <footer>
-      <p>© 2023 加班打卡系统 | 数据存储在本地浏览器中 | 包含1993-2053年新加坡假期数据</p>
+      <p>© 2025 Overtime Tracking System | Data stored locally in browser | Includes Singapore holidays 1993-2053</p>
     </footer>
   </div>
 
   <div id="notification"></div>
   <div class="overlay" id="overlay"></div>
   
-  <!-- 编辑打卡记录模态框 -->
+  <!-- Edit Record Modal -->
   <div class="modal" id="editModal">
     <h3><i class="fas fa-edit"></i> <span id="editDateLabel"></span></h3>
-    <label>上班时间</label>
+    <label>Clock In Time</label>
     <input type="time" id="editStart">
-    <label>下班时间</label>
+    <label>Clock Out Time</label>
     <input type="time" id="editEnd">
     <div class="clock-buttons">
-      <button id="saveBtn" onclick="saveEdit()">保存</button>
-      <button id="deleteBtn" onclick="deleteRecord()">删除</button>
-      <button id="cancelBtn" onclick="closeModal()">取消</button>
+      <button id="saveBtn" onclick="saveEdit()">Save</button>
+      <button id="deleteBtn" onclick="deleteRecord()">Delete</button>
+      <button id="cancelBtn" onclick="closeModal()">Cancel</button>
     </div>
   </div>
   
-  <!-- 系统设置模态框 -->
+  <!-- Settings Modal -->
   <div class="modal" id="settingsModal">
-    <h3><i class="fas fa-cog"></i> 系统设置</h3>
-    <label>月薪 (SGD):</label>
+    <h3><i class="fas fa-cog"></i> System Settings</h3>
+    <label>Monthly Salary (SGD):</label>
     <input type="number" id="monthlySalary" min="0" step="100" value="5000">
     
-    <label>每小时薪资 (SGD):</label>
+    <label>Hourly Rate (SGD):</label>
     <input type="number" id="hourlyRate" min="0" step="1" value="30" readonly>
     
-    <label>迟到扣款/分钟 (SGD):</label>
+    <label>Late Penalty/min (SGD):</label>
     <input type="number" id="latePenalty" min="0" step="0.1" value="0.5">
     
-    <label>标准上班时间:</label>
+    <label>Standard Start Time:</label>
     <input type="time" id="workStartTime" value="08:00">
     
-    <label>标准下班时间:</label>
+    <label>Standard End Time:</label>
     <input type="time" id="workEndTime" value="17:30">
     
     <div class="clock-buttons">
-      <button id="saveSettingsBtn" onclick="saveSettings()">保存设置</button>
-      <button id="cancelSettingsBtn" onclick="closeSettings()">取消</button>
+      <button id="saveSettingsBtn" onclick="saveSettings()">Save Settings</button>
+      <button id="cancelSettingsBtn" onclick="closeSettings()">Cancel</button>
+    </div>
+  </div>
+  
+  <!-- Allowance Management Modal -->
+  <div class="modal" id="allowanceModal">
+    <h3><i class="fas fa-money-bill-wave"></i> Allowance Management</h3>
+    
+    <div class="allowance-list" id="allowanceList">
+      <div class="allowance-item">
+        <span class="allowance-month">2023-11</span>
+        <span class="allowance-amount">$100.00</span>
+      </div>
+      <div class="allowance-item">
+        <span class="allowance-month">2023-12</span>
+        <span class="allowance-amount">$150.00</span>
+      </div>
+      <div class="allowance-item">
+        <span class="allowance-month">2024-01</span>
+        <span class="allowance-amount">$200.00</span>
+      </div>
+    </div>
+    
+    <label>Month-Year (YYYY-MM):</label>
+    <input type="month" id="allowanceMonth">
+    
+    <label>Allowance Amount (SGD):</label>
+    <input type="number" id="allowanceAmount" min="-10000" max="10000" step="100" value="0">
+    
+    <div class="clock-buttons">
+      <button id="addAllowanceBtn" onclick="addAllowance()">Add/Update</button>
+      <button id="deleteAllowanceBtn" onclick="deleteAllowance()">Delete</button>
+      <button onclick="closeAllowanceModal()">Cancel</button>
     </div>
   </div>
 
   <script>
     const STORAGE_KEY = 'worklog-records';
     const SETTINGS_KEY = 'worklog-settings';
+    const UI_SETTINGS_KEY = 'worklog-ui-settings';
+    const ALLOWANCE_KEY = 'worklog-allowances';
     const HOLIDAYS = generateSingaporeHolidays();
     let holidayViewEnabled = false;
     let clockedInToday = false;
@@ -826,27 +1061,31 @@
       workStartTime: "08:00",
       workEndTime: "17:30"
     };
+    
+    let uiSettings = {
+      salaryVisible: true
+    };
 
     function generateSingaporeHolidays() {
-      // 生成1993-2053年的新加坡公共假期数据
+      // Generate Singapore public holidays for 1993-2053
       const holidays = {};
       
-      // 固定日期假期
+      // Fixed date holidays
       for (let year = 1993; year <= 2053; year++) {
-        // 元旦
-        holidays[`${year}-01-01`] = '元旦';
+        // New Year
+        holidays[`${year}-01-01`] = 'New Year';
         
-        // 劳动节
-        holidays[`${year}-05-01`] = '劳动节';
+        // Labour Day
+        holidays[`${year}-05-01`] = 'Labour Day';
         
-        // 国庆日
-        holidays[`${year}-08-09`] = '国庆日';
+        // National Day
+        holidays[`${year}-08-09`] = 'National Day';
         
-        // 圣诞节
-        holidays[`${year}-12-25`] = '圣诞节';
+        // Christmas
+        holidays[`${year}-12-25`] = 'Christmas';
       }
       
-      // 农历新年（基于已知日期和模式）
+      // Lunar New Year
       const lunarNewYears = {
         '1993': '1993-01-23', '1994': '1994-02-10', '1995': '1995-01-31', '1996': '1996-02-19', '1997': '1997-02-07',
         '1998': '1998-01-28', '1999': '1999-02-16', '2000': '2000-02-05', '2001': '2001-01-24', '2002': '2002-02-12',
@@ -863,46 +1102,46 @@
         '2053': '2053-02-19'
       };
       
-      // 添加农历新年（2天）
+      // Add Lunar New Year (2 days)
       for (const [year, date] of Object.entries(lunarNewYears)) {
         const d1 = new Date(date);
         const d2 = new Date(d1);
         d2.setDate(d2.getDate() + 1);
         
-        holidays[date] = '农历新年';
-        holidays[formatDate(d2)] = '农历新年';
+        holidays[date] = 'Lunar New Year';
+        holidays[formatDate(d2)] = 'Lunar New Year';
       }
       
-      // 其他重要节日（简化版）
+      // Other important holidays
       const otherHolidays = {
-        // 耶稣受难日（示例日期）
-        '2023-04-07': '耶稣受难日',
-        '2024-03-29': '耶稣受难日',
-        '2025-04-18': '耶稣受难日',
-        '2026-04-03': '耶稣受难日',
+        // Good Friday
+        '2023-04-07': 'Good Friday',
+        '2024-03-29': 'Good Friday',
+        '2025-04-18': 'Good Friday',
+        '2026-04-03': 'Good Friday',
         
-        // 卫塞节
-        '2023-05-08': '卫塞节',
-        '2024-05-22': '卫塞节',
-        '2025-05-12': '卫塞节',
+        // Vesak Day
+        '2023-05-08': 'Vesak Day',
+        '2024-05-22': 'Vesak Day',
+        '2025-05-12': 'Vesak Day',
         
-        // 开斋节
-        '2023-06-02': '开斋节',
-        '2024-06-17': '开斋节',
-        '2025-06-06': '开斋节',
+        // Hari Raya Puasa
+        '2023-06-02': 'Hari Raya Puasa',
+        '2024-06-17': 'Hari Raya Puasa',
+        '2025-06-06': 'Hari Raya Puasa',
         
-        // 哈芝节
-        '2023-06-29': '哈芝节',
-        '2024-07-17': '哈芝节',
-        '2025-07-07': '哈芝节',
+        // Hari Raya Haji
+        '2023-06-29': 'Hari Raya Haji',
+        '2024-07-17': 'Hari Raya Haji',
+        '2025-07-07': 'Hari Raya Haji',
         
-        // 屠妖节
-        '2023-11-12': '屠妖节',
-        '2024-10-31': '屠妖节',
-        '2025-10-20': '屠妖节'
+        // Deepavali
+        '2023-11-12': 'Deepavali',
+        '2024-10-31': 'Deepavali',
+        '2025-10-20': 'Deepavali'
       };
       
-      // 添加其他节日
+      // Add other holidays
       for (const [date, name] of Object.entries(otherHolidays)) {
         holidays[date] = name;
       }
@@ -923,13 +1162,27 @@
       return savedSettings ? JSON.parse(savedSettings) : settings;
     }
     
+    function getUISettings() {
+      const savedUISettings = localStorage.getItem(UI_SETTINGS_KEY);
+      return savedUISettings ? JSON.parse(savedUISettings) : uiSettings;
+    }
+    
+    function getAllowances() {
+      const savedAllowances = localStorage.getItem(ALLOWANCE_KEY);
+      return savedAllowances ? JSON.parse(savedAllowances) : {};
+    }
+    
+    function saveAllowances(data) {
+      localStorage.setItem(ALLOWANCE_KEY, JSON.stringify(data));
+    }
+    
     function saveSettings() {
       settings.monthlySalary = parseFloat(document.getElementById('monthlySalary').value) || 5000;
       settings.latePenalty = parseFloat(document.getElementById('latePenalty').value) || 0.5;
       settings.workStartTime = document.getElementById('workStartTime').value || "08:00";
       settings.workEndTime = document.getElementById('workEndTime').value || "17:30";
       
-      // 计算时薪
+      // Calculate hourly rate
       const hourlyRate = settings.monthlySalary / (22 * 8);
       document.getElementById('hourlyRate').value = hourlyRate.toFixed(2);
       
@@ -937,7 +1190,11 @@
       closeSettings();
       renderCalendar();
       calculateSalary();
-      showNotification('系统设置已保存');
+      showNotification('System settings saved');
+    }
+    
+    function saveUISettings() {
+      localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(uiSettings));
     }
 
     function formatDate(d) {
@@ -979,37 +1236,37 @@
       const startTotal = startHour * 60 + startMin;
       const endTotal = endHour * 60 + endMin;
       
-      // 获取日期对象
+      // Get date object
       const date = new Date(dateStr);
       const dayOfWeek = date.getDay();
       
-      // 对于周六和周日，全天工作时间都算作加班
+      // For weekends, all work hours are considered overtime
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         const totalMinutes = endTotal - startTotal;
-        return totalMinutes / 60; // 返回全天工作时间（小时）
+        return totalMinutes / 60; // Return hours
       }
       
-      // 对于工作日：只计算标准下班时间之后的时间
+      // For weekdays: only calculate time after standard end time
       const [endHourWork, endMinWork] = settings.workEndTime.split(':').map(Number);
       const normalEndTime = endHourWork * 60 + endMinWork;
       
       const overtime = Math.max(0, endTotal - normalEndTime);
-      return overtime / 60; // 转换为小时
+      return overtime / 60; // Convert to hours
     }
     
     function calculateLateMinutes(dateStr, startTime) {
       if (!startTime) return 0;
       
-      // 获取日期对象
+      // Get date object
       const date = new Date(dateStr);
       const dayOfWeek = date.getDay();
       
-      // 周末不计迟到（0=周日，6=周六）
+      // Weekends don't count for late arrivals
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         return 0;
       }
       
-      // 检查是否是假期
+      // Check if holiday
       if (HOLIDAYS[dateStr] !== undefined) {
         return 0;
       }
@@ -1017,43 +1274,43 @@
       const [startHour, startMin] = startTime.split(':').map(Number);
       const startTotal = startHour * 60 + startMin;
       
-      // 上班时间
+      // Start time
       const [startHourWork, startMinWork] = settings.workStartTime.split(':').map(Number);
       const onTime = startHourWork * 60 + startMinWork;
       
-      // 迟到分钟数
+      // Late minutes
       return Math.max(0, startTotal - onTime);
     }
     
     function getPayPeriodDates(periodType, selectedMonth) {
-      // 解析选中的月份
+      // Parse selected month
       const [year, month] = selectedMonth.split('-').map(Number);
       const baseDate = new Date(year, month - 1, 1);
       
       let startDate, endDate;
       
       if (periodType === 'current') {
-        // 当前周期：上个月18号到这个月17号
+        // Current period: 18th of previous month to 17th of current month
         startDate = new Date(year, month - 2, 18);
         endDate = new Date(year, month - 1, 17);
       } else if (periodType === 'last') {
-        // 上个月周期：上上个月18号到上个月17号
+        // Last period: 18th of previous-previous month to 17th of previous month
         startDate = new Date(year, month - 3, 18);
         endDate = new Date(year, month - 2, 17);
       } else {
-        // 自定义周期（默认当前周期）
+        // Custom period (default to current)
         startDate = new Date(year, month - 2, 18);
         endDate = new Date(year, month - 1, 17);
       }
       
-      // 确保结束日期不会超过今天
+      // Ensure end date doesn't exceed today
       const today = new Date();
       if (endDate > today) endDate = today;
       
       return {
         start: startDate,
         end: endDate,
-        display: `${formatDate(startDate)} 至 ${formatDate(endDate)}`
+        display: `${formatDate(startDate)} to ${formatDate(endDate)}`
       };
     }
 
@@ -1107,7 +1364,6 @@
         
         const rec = data.find(r => r.date === dateStr);
         const overtime = rec ? calculateOvertime(dateStr, rec.start, rec.end) : 0;
-        // 假期和周末不算迟到
         const lateMinutes = rec ? calculateLateMinutes(dateStr, rec.start) : 0;
         
         if (overtime > 0) {
@@ -1141,7 +1397,7 @@
         div.innerHTML = `
           <div class="date-label">
             ${d.getDate()}
-            ${isToday ? '<span class="current-indicator">今</span>' : ''}
+            ${isToday ? '<span class="current-indicator">T</span>' : ''}
             ${overtimeRate}
           </div>
         `;
@@ -1153,11 +1409,11 @@
         if (rec) {
           div.innerHTML += `
             <div class="record">
-              <span>上班:</span>
+              <span>Start:</span>
               <span class="time">${rec.start || ''}</span>
             </div>
             <div class="record">
-              <span>下班:</span>
+              <span>End:</span>
               <span class="time">${rec.end || ''}</span>
             </div>
           `;
@@ -1165,10 +1421,10 @@
           if (lateMinutes > 0) {
             div.innerHTML += `
               <div class="late">
-                迟到 ${lateMinutes} 分钟
+                Late ${lateMinutes} min
               </div>
               <div class="deduction">
-                扣款 $${(lateMinutes * settings.latePenalty).toFixed(2)}
+                Deduction $${(lateMinutes * settings.latePenalty).toFixed(2)}
               </div>
             `;
           }
@@ -1176,7 +1432,7 @@
           if (overtime > 0) {
             div.innerHTML += `
               <div class="overtime">
-                加班 ${overtime.toFixed(1)} 小时
+                Overtime ${overtime.toFixed(1)} hr
               </div>
             `;
           }
@@ -1186,7 +1442,7 @@
         cal.appendChild(div);
       });
       
-      // 更新统计
+      // Update statistics
       document.getElementById('overtimeDays').textContent = overtimeDays;
       document.getElementById('totalHours').textContent = totalHours.toFixed(1);
       document.getElementById('satHours').textContent = satHours.toFixed(1);
@@ -1195,21 +1451,44 @@
       document.getElementById('lateMinutes').textContent = totalLateMinutes;
       document.getElementById('lateDeduction').textContent = `$${deductionAmount.toFixed(2)}`;
       
-      // 更新薪资周期显示（基于选择的月份）
+      // Update pay period display
       const periodType = document.getElementById('payPeriodSelect').value;
       const period = getPayPeriodDates(periodType, selectedMonth);
       document.getElementById('payPeriodDates').textContent = period.display;
+      
+      // Update salary estimate
+      calculateSalary();
     }
 
     function toggleHolidays() {
       holidayViewEnabled = !holidayViewEnabled;
       document.getElementById('holidayToggle').innerHTML = 
         holidayViewEnabled ? 
-        '<i class="fas fa-calendar-day"></i> 标准视图' : 
-        '<i class="fas fa-calendar-day"></i> 假期视图';
+        '<i class="fas fa-calendar-day"></i> Standard View' : 
+        '<i class="fas fa-calendar-day"></i> Holiday View';
       
       renderCalendar();
-      showNotification(holidayViewEnabled ? '已启用假期视图' : '已启用标准视图');
+      showNotification(holidayViewEnabled ? 'Holiday view enabled' : 'Standard view enabled');
+    }
+    
+    function toggleSalary() {
+      uiSettings.salaryVisible = !uiSettings.salaryVisible;
+      saveUISettings();
+      
+      const salaryCard = document.getElementById('salaryCard');
+      const allowanceCard = document.getElementById('allowanceCard');
+      const lateDeductionCard = document.getElementById('lateDeductionCard');
+      
+      salaryCard.style.display = uiSettings.salaryVisible ? 'block' : 'none';
+      allowanceCard.style.display = uiSettings.salaryVisible ? 'block' : 'none';
+      lateDeductionCard.style.display = uiSettings.salaryVisible ? 'block' : 'none';
+      
+      document.getElementById('salaryToggle').innerHTML = 
+        uiSettings.salaryVisible ? 
+        '<i class="fas fa-eye-slash"></i> Hide Salary' : 
+        '<i class="fas fa-eye"></i> Show Salary';
+      
+      showNotification(uiSettings.salaryVisible ? 'Salary estimates visible' : 'Salary estimates hidden');
     }
     
     function showExportOptions() {
@@ -1221,7 +1500,7 @@
 
     function openModal(date, rec) {
       editingDate = date;
-      document.getElementById('editDateLabel').textContent = `编辑：${date}`;
+      document.getElementById('editDateLabel').textContent = `Edit: ${date}`;
       document.getElementById('editStart').value = rec?.start || '';
       document.getElementById('editEnd').value = rec?.end || '';
       document.getElementById('editModal').style.display = 'block';
@@ -1240,7 +1519,7 @@
       document.getElementById('workStartTime').value = savedSettings.workStartTime;
       document.getElementById('workEndTime').value = savedSettings.workEndTime;
       
-      // 计算时薪
+      // Calculate hourly rate
       const hourlyRate = savedSettings.monthlySalary / (22 * 8);
       document.getElementById('hourlyRate').value = hourlyRate.toFixed(2);
       
@@ -1251,6 +1530,107 @@
     function closeSettings() {
       document.getElementById('settingsModal').style.display = 'none';
       document.getElementById('overlay').style.display = 'none';
+    }
+    
+    function openAllowanceModal() {
+      const allowances = getAllowances();
+      const listEl = document.getElementById('allowanceList');
+      listEl.innerHTML = '';
+      
+      // Add existing allowances
+      Object.entries(allowances).forEach(([month, amount]) => {
+        const item = document.createElement('div');
+        item.className = 'allowance-item';
+        item.innerHTML = `
+          <span class="allowance-month">${month}</span>
+          <span class="allowance-amount">$${amount.toFixed(2)}</span>
+        `;
+        listEl.appendChild(item);
+      });
+      
+      // Set current month
+      const currentMonth = document.getElementById('monthPicker').value;
+      document.getElementById('allowanceMonth').value = currentMonth;
+      
+      // Reset amount
+      document.getElementById('allowanceAmount').value = '0';
+      
+      // Show modal
+      document.getElementById('allowanceModal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+    
+    function closeAllowanceModal() {
+      document.getElementById('allowanceModal').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+    
+    function addAllowance() {
+      const month = document.getElementById('allowanceMonth').value;
+      const amount = parseFloat(document.getElementById('allowanceAmount').value) || 0;
+      
+      if (!month) {
+        showNotification('Please select a month');
+        return;
+      }
+      
+      const allowances = getAllowances();
+      allowances[month] = amount;
+      saveAllowances(allowances);
+      
+      // Update allowance list
+      const listEl = document.getElementById('allowanceList');
+      const existingItem = Array.from(listEl.children).find(item => 
+        item.querySelector('.allowance-month').textContent === month
+      );
+      
+      if (existingItem) {
+        existingItem.querySelector('.allowance-amount').textContent = `$${amount.toFixed(2)}`;
+      } else {
+        const newItem = document.createElement('div');
+        newItem.className = 'allowance-item';
+        newItem.innerHTML = `
+          <span class="allowance-month">${month}</span>
+          <span class="allowance-amount">$${amount.toFixed(2)}</span>
+        `;
+        listEl.appendChild(newItem);
+      }
+      
+      // Recalculate salary
+      calculateSalary();
+      showNotification(`Allowance for ${month} updated: $${amount.toFixed(2)}`);
+    }
+    
+    function deleteAllowance() {
+      const month = document.getElementById('allowanceMonth').value;
+      
+      if (!month) {
+        showNotification('Please select a month');
+        return;
+      }
+      
+      const allowances = getAllowances();
+      if (allowances.hasOwnProperty(month)) {
+        delete allowances[month];
+        saveAllowances(allowances);
+        
+        // Remove from list
+        const listEl = document.getElementById('allowanceList');
+        const items = Array.from(listEl.children);
+        const itemToRemove = items.find(item => 
+          item.querySelector('.allowance-month').textContent === month
+        );
+        
+        if (itemToRemove) {
+          listEl.removeChild(itemToRemove);
+        }
+        
+        // Recalculate salary
+        calculateSalary();
+        showNotification(`Allowance for ${month} deleted`);
+      } else {
+        showNotification(`No allowance found for ${month}`);
+      }
     }
 
     function saveEdit() {
@@ -1267,7 +1647,7 @@
       saveRecords(records);
       closeModal();
       renderCalendar();
-      showNotification('打卡记录已保存');
+      showNotification('Record saved');
     }
 
     function deleteRecord() {
@@ -1276,266 +1656,12 @@
       saveRecords(records);
       closeModal();
       renderCalendar();
-      showNotification('打卡记录已删除');
-    }
-
-    function exportCSV() {
-      const periodType = document.getElementById('payPeriodSelect').value;
-      const selectedMonth = document.getElementById('monthPicker').value;
-      const period = getPayPeriodDates(periodType, selectedMonth);
-      
-      const data = getRecords().filter(r => {
-        const recordDate = new Date(r.date);
-        return recordDate >= period.start && recordDate <= period.end;
-      });
-      
-      let csv = '日期,上班时间,下班时间,加班时长(小时),加班倍率,迟到分钟,扣款金额\n';
-      data.forEach(r => {
-        const recordDate = new Date(r.date);
-        const dayOfWeek = recordDate.getDay();
-        const isSaturday = dayOfWeek === 6;
-        const isSunday = dayOfWeek === 0;
-        const isHoliday = HOLIDAYS[r.date] !== undefined;
-        
-        let rate = '1.5';
-        if (isHoliday || isSunday) {
-          rate = '2.0';
-        } else if (!isSaturday && !isSunday) {
-          rate = '1.5';
-        }
-        
-        const overtime = calculateOvertime(r.date, r.start, r.end);
-        const lateMinutes = calculateLateMinutes(r.date, r.start);
-        const deduction = lateMinutes * settings.latePenalty;
-        csv += `${r.date},${r.start || ''},${r.end || ''},${overtime.toFixed(1)},${rate}x,${lateMinutes},${deduction.toFixed(2)}\n`;
-      });
-      
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `加班记录_${periodType}_周期.csv`;
-      a.click();
-      showNotification('CSV导出成功');
-    }
-    
-    function exportExcel() {
-      const periodType = document.getElementById('payPeriodSelect').value;
-      const selectedMonth = document.getElementById('monthPicker').value;
-      const period = getPayPeriodDates(periodType, selectedMonth);
-      
-      const data = getRecords().filter(r => {
-        const recordDate = new Date(r.date);
-        return recordDate >= period.start && recordDate <= period.end;
-      });
-      
-      const excelData = data.map(r => {
-        const date = new Date(r.date);
-        const dayOfWeek = date.getDay();
-        const isSaturday = dayOfWeek === 6;
-        const isSunday = dayOfWeek === 0;
-        const isHoliday = HOLIDAYS[r.date] !== undefined;
-        
-        let rate = '1.5';
-        if (isHoliday || isSunday) {
-          rate = '2.0';
-        } else if (!isSaturday && !isSunday) {
-          rate = '1.5';
-        }
-        
-        const overtime = calculateOvertime(r.date, r.start, r.end);
-        const lateMinutes = calculateLateMinutes(r.date, r.start);
-        const deduction = lateMinutes * settings.latePenalty;
-        return {
-          '日期': r.date,
-          '上班时间': r.start || '',
-          '下班时间': r.end || '',
-          '加班时长(小时)': overtime.toFixed(1),
-          '加班倍率': rate + 'x',
-          '迟到分钟': lateMinutes,
-          '扣款金额': deduction.toFixed(2),
-          '是否假期': isHoliday ? '是' : '否',
-          '星期': ['日','一','二','三','四','五','六'][dayOfWeek]
-        };
-      });
-      
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, '加班记录');
-      
-      // 添加摘要数据
-      const summaryData = [
-        ['统计项', '数值'],
-        ['总记录数', data.length],
-        ['总加班小时', data.reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1)],
-        ['周六加班小时', data.filter(r => new Date(r.date).getDay() === 6).reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1)],
-        ['周日加班小时', data.filter(r => new Date(r.date).getDay() === 0).reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1)],
-        ['迟到次数', data.filter(r => calculateLateMinutes(r.date, r.start) > 0).length],
-        ['迟到总分钟', data.reduce((sum, r) => sum + calculateLateMinutes(r.date, r.start), 0)],
-        ['迟到扣款总额', data.reduce((sum, r) => sum + (calculateLateMinutes(r.date, r.start) * settings.latePenalty), 0).toFixed(2)],
-        ['假期加班天数', data.filter(r => HOLIDAYS[r.date] !== undefined).length]
-      ];
-      
-      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summarySheet, '统计摘要');
-      
-      XLSX.writeFile(workbook, `加班记录_${periodType}_周期.xlsx`);
-      showNotification('Excel导出成功');
-    }
-    
-    function printReport() {
-      const periodType = document.getElementById('payPeriodSelect').value;
-      const selectedMonth = document.getElementById('monthPicker').value;
-      const period = getPayPeriodDates(periodType, selectedMonth);
-      
-      const data = getRecords().filter(r => {
-        const recordDate = new Date(r.date);
-        return recordDate >= period.start && recordDate <= period.end;
-      });
-      
-      let printContent = `
-        <style>
-          body { font-family: sans-serif; }
-          h1 { text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
-          .summary { margin-top: 30px; font-weight: bold; }
-        </style>
-        <h1>加班记录报表 (${period.display})</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>日期</th>
-              <th>星期</th>
-              <th>上班时间</th>
-              <th>下班时间</th>
-              <th>加班时长(小时)</th>
-              <th>加班倍率</th>
-              <th>迟到分钟</th>
-              <th>扣款金额</th>
-              <th>是否假期</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-      
-      data.forEach(r => {
-        const recordDate = new Date(r.date);
-        const dayOfWeek = recordDate.getDay();
-        const isSaturday = dayOfWeek === 6;
-        const isSunday = dayOfWeek === 0;
-        const isHoliday = HOLIDAYS[r.date] !== undefined;
-        
-        let rate = '1.5';
-        if (isHoliday || isSunday) {
-          rate = '2.0';
-        } else if (!isSaturday && !isSunday) {
-          rate = '1.5';
-        }
-        
-        const overtime = calculateOvertime(r.date, r.start, r.end);
-        const lateMinutes = calculateLateMinutes(r.date, r.start);
-        const deduction = lateMinutes * settings.latePenalty;
-        
-        printContent += `
-          <tr>
-            <td>${r.date}</td>
-            <td>${['日','一','二','三','四','五','六'][dayOfWeek]}</td>
-            <td>${r.start || ''}</td>
-            <td>${r.end || ''}</td>
-            <td>${overtime.toFixed(1)}</td>
-            <td>${rate}x</td>
-            <td>${lateMinutes}</td>
-            <td>$${deduction.toFixed(2)}</td>
-            <td>${isHoliday ? '是' : '否'}</td>
-          </tr>
-        `;
-      });
-      
-      const totalOvertime = data.reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1);
-      const satOvertime = data.filter(r => new Date(r.date).getDay() === 6).reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1);
-      const sunOvertime = data.filter(r => new Date(r.date).getDay() === 0).reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1);
-      const lateCount = data.filter(r => calculateLateMinutes(r.date, r.start) > 0).length;
-      const totalLateMinutes = data.reduce((sum, r) => sum + calculateLateMinutes(r.date, r.start), 0);
-      const totalDeduction = data.reduce((sum, r) => sum + (calculateLateMinutes(r.date, r.start) * settings.latePenalty), 0).toFixed(2);
-      const holidayDays = data.filter(r => HOLIDAYS[r.date] !== undefined).length;
-      
-      printContent += `
-          </tbody>
-        </table>
-        <div class="summary">
-          <p><strong>总记录数:</strong> ${data.length}</p>
-          <p><strong>总加班小时:</strong> ${totalOvertime}</p>
-          <p><strong>周六加班小时:</strong> ${satOvertime}</p>
-          <p><strong>周日加班小时:</strong> ${sunOvertime}</p>
-          <p><strong>迟到次数:</strong> ${lateCount}</p>
-          <p><strong>迟到总分钟:</strong> ${totalLateMinutes}</p>
-          <p><strong>迟到扣款总额:</strong> $${totalDeduction}</p>
-          <p><strong>假期加班天数:</strong> ${holidayDays}</p>
-        </div>
-      `;
-      
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.print();
-    }
-    
-    function exportSummary() {
-      const periodType = document.getElementById('payPeriodSelect').value;
-      const selectedMonth = document.getElementById('monthPicker').value;
-      const period = getPayPeriodDates(periodType, selectedMonth);
-      
-      const data = getRecords().filter(r => {
-        const recordDate = new Date(r.date);
-        return recordDate >= period.start && recordDate <= period.end;
-      });
-      
-      let summary = `加班记录摘要 (${period.display})\n\n`;
-      summary += `总记录数: ${data.length}\n`;
-      summary += `总加班小时: ${data.reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1)}\n`;
-      summary += `周六加班小时: ${data.filter(r => new Date(r.date).getDay() === 6).reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1)}\n`;
-      summary += `周日加班小时: ${data.filter(r => new Date(r.date).getDay() === 0).reduce((sum, r) => sum + calculateOvertime(r.date, r.start, r.end), 0).toFixed(1)}\n`;
-      summary += `迟到次数: ${data.filter(r => calculateLateMinutes(r.date, r.start) > 0).length}\n`;
-      summary += `迟到总分钟: ${data.reduce((sum, r) => sum + calculateLateMinutes(r.date, r.start), 0)}\n`;
-      summary += `迟到扣款总额: $${data.reduce((sum, r) => sum + (calculateLateMinutes(r.date, r.start) * settings.latePenalty), 0).toFixed(2)}\n`;
-      summary += `假期加班天数: ${data.filter(r => HOLIDAYS[r.date] !== undefined).length}\n\n`;
-      
-      summary += "详细记录:\n";
-      summary += "日期\t星期\t上班时间\t下班时间\t加班时长\t加班倍率\t迟到分钟\t扣款金额\t是否假期\n";
-      
-      data.forEach(r => {
-        const date = new Date(r.date);
-        const dayOfWeek = date.getDay();
-        const isSaturday = dayOfWeek === 6;
-        const isSunday = dayOfWeek === 0;
-        const isHoliday = HOLIDAYS[r.date] !== undefined;
-        
-        let rate = '1.5';
-        if (isHoliday || isSunday) {
-          rate = '2.0';
-        } else if (!isSaturday && !isSunday) {
-          rate = '1.5';
-        }
-        
-        const overtime = calculateOvertime(r.date, r.start, r.end);
-        const lateMinutes = calculateLateMinutes(r.date, r.start);
-        const deduction = lateMinutes * settings.latePenalty;
-        
-        summary += `${r.date}\t${['日','一','二','三','四','五','六'][dayOfWeek]}\t${r.start || ''}\t${r.end || ''}\t${overtime.toFixed(1)}\t${rate}x\t${lateMinutes}\t$${deduction.toFixed(2)}\t${isHoliday ? '是' : '否'}\n`;
-      });
-      
-      const blob = new Blob([summary], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `加班摘要_${periodType}_周期.txt`;
-      a.click();
-      showNotification('摘要导出成功');
+      showNotification('Record deleted');
     }
 
     function clockIn() {
       if (clockedInToday) {
-        showNotification('您今天已经打过上班卡了');
+        showNotification('You have already clocked in today');
         return;
       }
       
@@ -1550,18 +1676,18 @@
         records.push(rec);
       }
       
-      // 记录上班打卡
+      // Record clock in
       rec.start = timeStr;
       saveRecords(records);
       renderCalendar();
       
-      // 计算迟到分钟数（假期和周末不算迟到）
+      // Calculate late minutes (weekends and holidays not counted)
       const lateMinutes = calculateLateMinutes(dateStr, timeStr);
       
       if (lateMinutes > 0) {
-        showNotification(`上班打卡成功: ${timeStr} | 迟到 ${lateMinutes} 分钟 | 扣款 $${(lateMinutes * settings.latePenalty).toFixed(2)}`);
+        showNotification(`Clock in successful: ${timeStr} | Late ${lateMinutes} min | Deduction $${(lateMinutes * settings.latePenalty).toFixed(2)}`);
       } else {
-        showNotification(`上班打卡成功: ${timeStr} | 准时上班`);
+        showNotification(`Clock in successful: ${timeStr} | On time`);
       }
       
       clockedInToday = true;
@@ -1569,7 +1695,7 @@
 
     function clockOut() {
       if (clockedOutToday) {
-        showNotification('您今天已经打过下班卡了');
+        showNotification('You have already clocked out today');
         return;
       }
       
@@ -1584,9 +1710,9 @@
         records.push(rec);
       }
       
-      // 检查是否已打卡上班
+      // Check if clocked in
       if (!rec.start) {
-        showNotification('请先打卡上班');
+        showNotification('Please clock in first');
         return;
       }
       
@@ -1595,7 +1721,7 @@
       renderCalendar();
       
       const overtime = calculateOvertime(dateStr, rec.start, rec.end);
-      showNotification(`下班打卡成功: ${timeStr} | 加班时长: ${overtime.toFixed(1)}小时`);
+      showNotification(`Clock out successful: ${timeStr} | Overtime: ${overtime.toFixed(1)} hours`);
       
       clockedOutToday = true;
     }
@@ -1609,10 +1735,10 @@
       const monthlySalary = settings.monthlySalary;
       const latePenalty = settings.latePenalty;
       
-      // 计算时薪（每月按22个工作日，每天8小时）
+      // Calculate hourly rate (22 work days, 8 hours per day)
       const hourlyRate = monthlySalary / (22 * 8);
       
-      // 获取记录
+      // Get records
       const records = getRecords().filter(r => {
         const recordDate = new Date(r.date);
         return recordDate >= period.start && recordDate <= period.end;
@@ -1621,7 +1747,7 @@
       let overtimePay = 0;
       let lateDeduction = 0;
       
-      // 计算周期数据
+      // Calculate period data
       records.forEach(r => {
         const recordDate = new Date(r.date);
         const isHoliday = HOLIDAYS[r.date] !== undefined;
@@ -1629,34 +1755,52 @@
         const isSaturday = dayOfWeek === 6;
         const isSunday = dayOfWeek === 0;
         
-        // 计算加班费
+        // Calculate overtime pay
         const overtime = calculateOvertime(r.date, r.start, r.end);
         if (overtime > 0) {
           if (isHoliday || isSunday) {
-            // 节假日或周日加班：2倍工资
+            // Holiday or Sunday: 2.0x pay
             overtimePay += overtime * hourlyRate * 2;
           } else if (isSaturday) {
-            // 周六加班：1.5倍工资
+            // Saturday: 1.5x pay
             overtimePay += overtime * hourlyRate * 1.5;
           } else {
-            // 平日加班：1.5倍工资
+            // Weekday: 1.5x pay
             overtimePay += overtime * hourlyRate * 1.5;
           }
         }
         
-        // 计算迟到扣款（假期和周末不算迟到）
+        // Calculate late deductions (weekends and holidays not counted)
         const lateMinutes = calculateLateMinutes(r.date, r.start);
         lateDeduction += lateMinutes * latePenalty;
       });
       
-      // 计算本月总工资
-      const totalSalary = monthlySalary + overtimePay - lateDeduction;
+      // Get allowances
+      const allowances = getAllowances();
+      let totalAllowance = 0;
       
-      // 更新UI
+      // Calculate allowances for the period
+      Object.entries(allowances).forEach(([month, amount]) => {
+        const allowanceMonth = new Date(`${month}-01`);
+        if (allowanceMonth >= period.start && allowanceMonth <= period.end) {
+          totalAllowance += amount;
+        }
+      });
+      
+      // Update allowance display
+      document.getElementById('totalAllowance').textContent = `$${totalAllowance.toFixed(2)}`;
+      
+      // Calculate total salary
+      const totalSalary = monthlySalary + overtimePay - lateDeduction + totalAllowance;
+      
+      // Update UI
       document.getElementById('monthSalary').textContent = `$${totalSalary.toFixed(2)}`;
       document.getElementById('lateDeduction').textContent = `$${lateDeduction.toFixed(2)}`;
       
-      showNotification(`薪资计算完成: 基本$${monthlySalary} + 加班费$${overtimePay.toFixed(2)} - 迟到扣款$${lateDeduction.toFixed(2)} = 总工资$${totalSalary.toFixed(2)}`);
+      // Only show notification if salary is visible
+      if (uiSettings.salaryVisible) {
+        showNotification(`Salary calculated: Base $${monthlySalary} + Overtime $${overtimePay.toFixed(2)} - Deductions $${lateDeduction.toFixed(2)} + Allowance $${totalAllowance.toFixed(2)} = Total $${totalSalary.toFixed(2)}`);
+      }
     }
 
     function showNotification(message) {
@@ -1669,52 +1813,494 @@
       }, 5000);
     }
 
+    // ================== 导出功能实现 ==================
+    function getExportData() {
+      const periodType = document.getElementById('payPeriodSelect').value;
+      const selectedMonth = document.getElementById('monthPicker').value;
+      const period = getPayPeriodDates(periodType, selectedMonth);
+      
+      const settings = getSettings();
+      const records = getRecords().filter(r => {
+        const recordDate = new Date(r.date);
+        return recordDate >= period.start && recordDate <= period.end;
+      });
+      
+      // 准备统计数据
+      let overtimeDays = 0;
+      let totalHours = 0;
+      let satHours = 0;
+      let sunHours = 0;
+      let lateCount = 0;
+      let totalLateMinutes = 0;
+      let deductionAmount = 0;
+      let holidayDays = 0;
+      
+      records.forEach(r => {
+        const date = new Date(r.date);
+        const isHoliday = HOLIDAYS[r.date] !== undefined;
+        const isSaturday = date.getDay() === 6;
+        const isSunday = date.getDay() === 0;
+        
+        const overtime = calculateOvertime(r.date, r.start, r.end);
+        const lateMinutes = calculateLateMinutes(r.date, r.start);
+        
+        if (overtime > 0) {
+          overtimeDays++;
+          totalHours += overtime;
+          
+          if (isSaturday) satHours += overtime;
+          if (isSunday) sunHours += overtime;
+          if (isHoliday || isSaturday || isSunday) holidayDays++;
+        }
+        
+        if (lateMinutes > 0) {
+          lateCount++;
+          totalLateMinutes += lateMinutes;
+          deductionAmount += lateMinutes * settings.latePenalty;
+        }
+      });
+      
+      return {
+        period: period.display,
+        records: records,
+        stats: {
+          overtimeDays,
+          totalHours: totalHours.toFixed(1),
+          satHours: satHours.toFixed(1),
+          sunHours: sunHours.toFixed(1),
+          lateCount,
+          totalLateMinutes,
+          deductionAmount: deductionAmount.toFixed(2)
+        }
+      };
+    }
+    
+    function exportCSV() {
+      const data = getExportData();
+      let csvContent = "Date,Start Time,End Time,Overtime (hr),Late (min),Deduction (SGD),Holiday\n";
+      
+      data.records.forEach(record => {
+        const date = new Date(record.date);
+        const isHoliday = HOLIDAYS[record.date] !== undefined;
+        const overtime = calculateOvertime(record.date, record.start, record.end);
+        const lateMinutes = calculateLateMinutes(record.date, record.start);
+        const deduction = (lateMinutes * settings.latePenalty).toFixed(2);
+        
+        csvContent += `"${record.date}","${record.start || ''}","${record.end || ''}",`;
+        csvContent += `"${overtime.toFixed(1)}","${lateMinutes}","${deduction}",`;
+        csvContent += `"${isHoliday ? HOLIDAYS[record.date] : ''}"\n`;
+      });
+      
+      // 添加统计数据
+      csvContent += "\n\nSummary\n";
+      csvContent += `Period,${data.period}\n`;
+      csvContent += `Overtime Days,${data.stats.overtimeDays}\n`;
+      csvContent += `Total Overtime Hours,${data.stats.totalHours}\n`;
+      csvContent += `Saturday Hours,${data.stats.satHours}\n`;
+      csvContent += `Sunday Hours,${data.stats.sunHours}\n`;
+      csvContent += `Late Arrivals,${data.stats.lateCount}\n`;
+      csvContent += `Total Late Minutes,${data.stats.totalLateMinutes}\n`;
+      csvContent += `Late Deductions,$${data.stats.deductionAmount}\n`;
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `overtime_report_${new Date().toISOString().slice(0,10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification('CSV file downloaded successfully');
+      showExportOptions();
+    }
+    
+    function exportExcel() {
+      const data = getExportData();
+      
+      // 创建工作簿
+      const wb = XLSX.utils.book_new();
+      wb.Props = {
+        Title: "Overtime Report",
+        Subject: "Singapore Overtime Tracking",
+        Author: "Overtime Tracking System",
+        CreatedDate: new Date()
+      };
+      
+      // 添加记录表
+      const ws_data = [
+        ["Date", "Start Time", "End Time", "Overtime (hr)", "Late (min)", "Deduction (SGD)", "Holiday"]
+      ];
+      
+      data.records.forEach(record => {
+        const date = new Date(record.date);
+        const isHoliday = HOLIDAYS[record.date] !== undefined;
+        const overtime = calculateOvertime(record.date, record.start, record.end);
+        const lateMinutes = calculateLateMinutes(record.date, record.start);
+        const deduction = (lateMinutes * settings.latePenalty).toFixed(2);
+        
+        ws_data.push([
+          record.date,
+          record.start || '',
+          record.end || '',
+          overtime.toFixed(1),
+          lateMinutes,
+          deduction,
+          isHoliday ? HOLIDAYS[record.date] : ''
+        ]);
+      });
+      
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+      XLSX.utils.book_append_sheet(wb, ws, "Records");
+      
+      // 添加统计表
+      const summary_data = [
+        ["Period", data.period],
+        ["Overtime Days", data.stats.overtimeDays],
+        ["Total Overtime Hours", data.stats.totalHours],
+        ["Saturday Hours", data.stats.satHours],
+        ["Sunday Hours", data.stats.sunHours],
+        ["Late Arrivals", data.stats.lateCount],
+        ["Total Late Minutes", data.stats.totalLateMinutes],
+        ["Late Deductions", `$${data.stats.deductionAmount}`]
+      ];
+      
+      const ws_summary = XLSX.utils.aoa_to_sheet(summary_data);
+      XLSX.utils.book_append_sheet(wb, ws_summary, "Summary");
+      
+      // 导出文件
+      XLSX.writeFile(wb, `overtime_report_${new Date().toISOString().slice(0,10)}.xlsx`);
+      showNotification('Excel file downloaded successfully');
+      showExportOptions();
+    }
+    
+    function exportSummary() {
+      const data = getExportData();
+      let summaryContent = `Overtime Tracking Report\n`;
+      summaryContent += `Period: ${data.period}\n`;
+      summaryContent += `Generated: ${new Date().toLocaleString()}\n\n`;
+      
+      summaryContent += `===== Summary =====\n`;
+      summaryContent += `Overtime Days: ${data.stats.overtimeDays}\n`;
+      summaryContent += `Total Overtime Hours: ${data.stats.totalHours}\n`;
+      summaryContent += `Saturday Hours: ${data.stats.satHours}\n`;
+      summaryContent += `Sunday Hours: ${data.stats.sunHours}\n`;
+      summaryContent += `Late Arrivals: ${data.stats.lateCount}\n`;
+      summaryContent += `Total Late Minutes: ${data.stats.totalLateMinutes}\n`;
+      summaryContent += `Late Deductions: $${data.stats.deductionAmount}\n\n`;
+      
+      summaryContent += `===== Detailed Records =====\n`;
+      data.records.forEach(record => {
+        const date = new Date(record.date);
+        const isHoliday = HOLIDAYS[record.date] !== undefined;
+        const overtime = calculateOvertime(record.date, record.start, record.end);
+        const lateMinutes = calculateLateMinutes(record.date, record.start);
+        const deduction = (lateMinutes * settings.latePenalty).toFixed(2);
+        
+        summaryContent += `Date: ${record.date}\n`;
+        summaryContent += `  Start: ${record.start || 'N/A'}\n`;
+        summaryContent += `  End: ${record.end || 'N/A'}\n`;
+        summaryContent += `  Overtime: ${overtime.toFixed(1)} hr\n`;
+        summaryContent += `  Late: ${lateMinutes} min\n`;
+        summaryContent += `  Deduction: $${deduction}\n`;
+        if (isHoliday) {
+          summaryContent += `  Holiday: ${HOLIDAYS[record.date]}\n`;
+        }
+        summaryContent += `--------------------------------\n`;
+      });
+      
+      const blob = new Blob([summaryContent], { type: 'text/plain;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `overtime_summary_${new Date().toISOString().slice(0,10)}.txt`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification('Summary file downloaded successfully');
+      showExportOptions();
+    }
+    
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const data = getExportData();
+      const currentDate = new Date().toLocaleDateString();
+      
+      // 添加标题
+      doc.setFontSize(18);
+      doc.text("Overtime Tracking Report", 105, 15, null, null, 'center');
+      doc.setFontSize(12);
+      doc.text(`Period: ${data.period} | Generated: ${currentDate}`, 105, 22, null, null, 'center');
+      
+      // 添加摘要
+      doc.setFontSize(14);
+      doc.text("Summary", 14, 30);
+      
+      const summaryY = 37;
+      doc.setFontSize(11);
+      doc.text(`Overtime Days: ${data.stats.overtimeDays}`, 20, summaryY);
+      doc.text(`Total Overtime Hours: ${data.stats.totalHours}`, 20, summaryY + 7);
+      doc.text(`Saturday Hours: ${data.stats.satHours}`, 20, summaryY + 14);
+      doc.text(`Sunday Hours: ${data.stats.sunHours}`, 20, summaryY + 21);
+      doc.text(`Late Arrivals: ${data.stats.lateCount}`, 100, summaryY);
+      doc.text(`Total Late Minutes: ${data.stats.totalLateMinutes}`, 100, summaryY + 7);
+      doc.text(`Late Deductions: $${data.stats.deductionAmount}`, 100, summaryY + 14);
+      
+      // 添加详细记录标题
+      doc.setFontSize(14);
+      doc.text("Detailed Records", 14, summaryY + 35);
+      
+      // 准备表格数据
+      const tableData = [];
+      data.records.forEach(record => {
+        const date = new Date(record.date);
+        const isHoliday = HOLIDAYS[record.date] !== undefined;
+        const overtime = calculateOvertime(record.date, record.start, record.end);
+        const lateMinutes = calculateLateMinutes(record.date, record.start);
+        const deduction = (lateMinutes * settings.latePenalty).toFixed(2);
+        
+        tableData.push([
+          record.date,
+          record.start || 'N/A',
+          record.end || 'N/A',
+          overtime.toFixed(1),
+          lateMinutes,
+          `$${deduction}`,
+          isHoliday ? HOLIDAYS[record.date] : '-'
+        ]);
+      });
+      
+      // 添加表格
+      doc.autoTable({
+        startY: summaryY + 40,
+        head: [['Date', 'Start', 'End', 'Overtime (hr)', 'Late (min)', 'Deduction', 'Holiday']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [67, 97, 238] },
+        styles: { fontSize: 10 }
+      });
+      
+      // 添加页脚
+      const pageCount = doc.internal.getNumberOfPages();
+      for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.text(`Page ${i} of ${pageCount}`, 195, 285, null, null, 'right');
+        doc.text("Singapore Overtime Tracking System", 15, 285);
+      }
+      
+      // 保存文件
+      doc.save(`overtime_report_${new Date().toISOString().slice(0,10)}.pdf`);
+      showNotification('PDF file generated successfully');
+      showExportOptions();
+    }
+    
+    function printReport() {
+      const data = getExportData();
+      const currentDate = new Date().toLocaleString();
+      
+      // 创建打印内容
+      let printContent = `
+        <style>
+          body { font-family: Arial, sans-serif; margin: 1cm; }
+          h1 { text-align: center; margin-bottom: 5px; }
+          .subtitle { text-align: center; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #4361ee; color: white; }
+          .summary { margin-top: 30px; }
+          .summary h2 { border-bottom: 1px solid #333; padding-bottom: 5px; }
+          .summary-item { margin-bottom: 5px; }
+          .page-break { page-break-before: always; }
+          @media print {
+            .no-print { display: none; }
+          }
+        </style>
+        <div class="no-print" style="text-align:center;margin-bottom:20px;">
+          <button onclick="window.print()" style="padding:10px 20px;background:#4361ee;color:white;border:none;border-radius:5px;cursor:pointer;">Print Report</button>
+          <button onclick="window.close()" style="padding:10px 20px;background:#f72585;color:white;border:none;border-radius:5px;cursor:pointer;margin-left:10px;">Close</button>
+        </div>
+        <h1>Overtime Tracking Report</h1>
+        <div class="subtitle">
+          <p>Period: ${data.period} | Generated: ${currentDate}</p>
+        </div>
+      `;
+      
+      // 添加摘要部分
+      printContent += `
+        <div class="summary">
+          <h2>Summary</h2>
+          <div class="summary-item"><strong>Overtime Days:</strong> ${data.stats.overtimeDays}</div>
+          <div class="summary-item"><strong>Total Overtime Hours:</strong> ${data.stats.totalHours}</div>
+          <div class="summary-item"><strong>Saturday Hours:</strong> ${data.stats.satHours}</div>
+          <div class="summary-item"><strong>Sunday Hours:</strong> ${data.stats.sunHours}</div>
+          <div class="summary-item"><strong>Late Arrivals:</strong> ${data.stats.lateCount}</div>
+          <div class="summary-item"><strong>Total Late Minutes:</strong> ${data.stats.totalLateMinutes}</div>
+          <div class="summary-item"><strong>Late Deductions:</strong> $${data.stats.deductionAmount}</div>
+        </div>
+      `;
+      
+      // 添加详细记录
+      printContent += `
+        <div class="records" style="margin-top: 30px;">
+          <h2>Detailed Records</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Overtime (hr)</th>
+                <th>Late (min)</th>
+                <th>Deduction</th>
+                <th>Holiday</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      data.records.forEach(record => {
+        const date = new Date(record.date);
+        const isHoliday = HOLIDAYS[record.date] !== undefined;
+        const overtime = calculateOvertime(record.date, record.start, record.end);
+        const lateMinutes = calculateLateMinutes(record.date, record.start);
+        const deduction = (lateMinutes * settings.latePenalty).toFixed(2);
+        
+        printContent += `
+          <tr>
+            <td>${record.date}</td>
+            <td>${record.start || 'N/A'}</td>
+            <td>${record.end || 'N/A'}</td>
+            <td>${overtime.toFixed(1)}</td>
+            <td>${lateMinutes}</td>
+            <td>$${deduction}</td>
+            <td>${isHoliday ? HOLIDAYS[record.date] : '-'}</td>
+          </tr>
+        `;
+      });
+      
+      printContent += `
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      // 创建打印窗口
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Overtime Report</title>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      showNotification('Print view opened in new window');
+      showExportOptions();
+    }
+    
+    function updatePayPeriod() {
+      const selectedMonth = document.getElementById('monthPicker').value;
+      const periodType = document.getElementById('payPeriodSelect').value;
+      const period = getPayPeriodDates(periodType, selectedMonth);
+      document.getElementById('payPeriodDates').textContent = period.display;
+      renderCalendar();
+    }
+    
+    function adjustPeriod(direction) {
+      const picker = document.getElementById('monthPicker');
+      const currentDate = new Date(picker.value + '-01');
+      
+      if (direction === -1) {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+      } else {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+      
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      picker.value = `${year}-${month}`;
+      
+      updatePayPeriod();
+      showNotification(`Viewing data for ${year}-${month}`);
+    }
+    
+    function applyCustomPeriod() {
+      showNotification('Custom period applied');
+      updatePayPeriod();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
       const currentMonth = now.toISOString().slice(0,7);
       document.getElementById('monthPicker').value = currentMonth;
       
-      // 加载设置
+      // Load settings
       const savedSettings = getSettings();
       settings = savedSettings;
       
-      // 初始化薪资周期（基于当前月份）
+      // Load UI settings
+      const savedUISettings = getUISettings();
+      uiSettings = savedUISettings;
+      
+      // Initialize pay period
       const periodType = document.getElementById('payPeriodSelect').value;
       const period = getPayPeriodDates(periodType, currentMonth);
       document.getElementById('payPeriodDates').textContent = period.display;
       
+      // Set salary visibility
+      document.getElementById('salaryToggle').innerHTML = 
+        uiSettings.salaryVisible ? 
+        '<i class="fas fa-eye-slash"></i> Hide Salary' : 
+        '<i class="fas fa-eye"></i> Show Salary';
+      
+      document.getElementById('salaryCard').style.display = 
+        uiSettings.salaryVisible ? 'block' : 'none';
+      
+      document.getElementById('allowanceCard').style.display = 
+        uiSettings.salaryVisible ? 'block' : 'none';
+      
+      document.getElementById('lateDeductionCard').style.display = 
+        uiSettings.salaryVisible ? 'block' : 'none';
+      
       renderCalendar();
       
-      // 监听月份选择器变化
+      // Listen for month picker changes
       document.getElementById('monthPicker').addEventListener('change', function() {
         renderCalendar();
-        calculateSalary();
       });
       
-      // 绑定打卡按钮
+      // Bind clock buttons
       document.getElementById('clockInBtn').addEventListener('click', clockIn);
       document.getElementById('clockOutBtn').addEventListener('click', clockOut);
       
-      // 绑定薪资周期选择
+      // Bind pay period selection
       document.getElementById('payPeriodSelect').addEventListener('change', function() {
         const selectedMonth = document.getElementById('monthPicker').value;
         const period = getPayPeriodDates(this.value, selectedMonth);
         document.getElementById('payPeriodDates').textContent = period.display;
         renderCalendar();
-        calculateSalary();
       });
       
-      // 初始化薪资计算
+      // Initialize salary calculation
       calculateSalary();
       
-      // 重置每天的打卡状态
+      // Reset daily clock status
       setInterval(() => {
         const now = new Date();
         if (now.getHours() === 0 && now.getMinutes() === 0) {
           clockedInToday = false;
           clockedOutToday = false;
         }
-      }, 60000); // 每分钟检查一次
+      }, 60000); // Check every minute
     });
   </script>
 </body>
